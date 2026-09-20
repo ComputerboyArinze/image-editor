@@ -1,0 +1,228 @@
+Image editor 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced CSS Image Editor</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    .editor {
+      background: #1f1f1f;
+      border-radius: 20px;
+      padding: 20px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+    }
+    .image-container {
+      background: #222;
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+      height: 300px;
+      position: relative;
+    }
+    .image-container img {
+      max-width: 100%;
+      max-height: 100%;
+      transition: all 0.3s ease;
+    }
+    .controls, .transform-controls {
+      display: grid;
+      gap: 10px;
+    }
+    .control, .transform {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #007bff;
+    }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    button {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 10px;
+      background: #007bff;
+      color: #fff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #0057c2;
+    }
+    #upload {
+      margin-bottom: 10px;
+    }
+    .transform-buttons {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 10px;
+    }
+    .transform-buttons button {
+      background: #444;
+    }
+    .transform-buttons button:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+  <h1>🧠 Advanced CSS Image Editor</h1>
+  <div class="editor">
+    <input type="file" id="upload" accept="image/*">
+    <div class="image-container">
+      <img id="preview" src="https://via.placeholder.com/400x300?text=Upload+an+Image" alt="Preview">
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label>Brightness</label>
+        <input type="range" id="brightness" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Contrast</label>
+        <input type="range" id="contrast" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Saturation</label>
+        <input type="range" id="saturate" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Blur</label>
+        <input type="range" id="blur" min="0" max="10" value="0">
+      </div>
+      <div class="control">
+        <label>Hue Rotate</label>
+        <input type="range" id="hue" min="0" max="360" value="0">
+      </div>
+    </div>
+    <hr style="margin:20px 0; border: 0.5px solid #333;">
+    <div class="transform-controls">
+      <h3 style="text-align:center;">🌀 Transform Tools</h3>
+      <div class="transform-buttons">
+        <button id="rotateLeft">⟲ Rotate Left</button>
+        <button id="rotateRight">⟳ Rotate Right</button>
+        <button id="flipH">⇋ Flip H</button>
+        <button id="flipV">⇅ Flip V</button>
+        <button id="crop">✂️ Crop</button>
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="reset">Reset</button>
+      <button id="download">Download</button>
+    </div>
+  </div>
+  <script>
+    const img = document.getElementById('preview');
+    const upload = document.getElementById('upload');
+    const reset = document.getElementById('reset');
+    const download = document.getElementById('download');
+    const filters = {
+      brightness: 100,
+      contrast: 100,
+      saturate: 100,
+      blur: 0,
+      hue: 0
+    };
+    let rotate = 0;
+    let flipH = 1;
+    let flipV = 1;
+    function applyFilters() {
+      img.style.filter = `
+        brightness(${filters.brightness}%)
+        contrast(${filters.contrast}%)
+        saturate(${filters.saturate}%)
+        blur(${filters.blur}px)
+        hue-rotate(${filters.hue}deg)
+      `;
+      img.style.transform = `rotate(${rotate}deg) scale(${flipH}, ${flipV})`;
+    }
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('input', e => {
+        filters[e.target.id] = e.target.value;
+        applyFilters();
+      });
+    });
+    upload.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => (img.src = reader.result);
+        reader.readAsDataURL(file);
+      }
+    });
+    reset.addEventListener('click', () => {
+      for (let key in filters) {
+        filters[key] = key === 'blur' || key === 'hue' ? 0 : 100;
+        document.getElementById(key).value = filters[key];
+      }
+      rotate = 0;
+      flipH = 1;
+      flipV = 1;
+      applyFilters();
+    });
+    document.getElementById('rotateLeft').addEventListener('click', () => {
+      rotate -= 90;
+      applyFilters();
+    });
+    document.getElementById('rotateRight').addEventListener('click', () => {
+      rotate += 90;
+      applyFilters();
+    });
+    document.getElementById('flipH').addEventListener('click', () => {
+      flipH *= -1;
+      applyFilters();
+    });
+    document.getElementById('flipV').addEventListener('click', () => {
+      flipV *= -1;
+      applyFilters();
+    });
+    // Simple crop simulation (shows only the central part)
+    document.getElementById('crop').addEventListener('click', () => {
+      img.style.objectFit = 'cover';
+      img.style.width = '100%';
+      img.style.height = '100%';
+    });
+    download.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.filter = img.style.filter;
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.scale(flipH, flipV);
+      ctx.rotate((rotate * Math.PI) / 180);
+      ctx.drawImage(img, -canvas.width / 2, -canvas.height / 2, canvas.width, canvas.height);
+      const link = document.createElement('a');
+      link.download = 'edited-image.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>
