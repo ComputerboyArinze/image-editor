@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSS Filter Image Editor</title>
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #121212;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .editor {
+      background: #1f1f1f;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      max-width: 400px;
+      width: 100%;  
+    }
+    .image-container {
+
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #222;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
+
+    }
+    .image-container img {
+      
+      max-width: 100%;
+      display: block;
+      border-radius: 12px;
+      transition: filter 0.2s ease;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .control {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    input[type="range"] {
+      width: 100%;
+      cursor: pointer;
+      accent-color: #007bff;
+    }
+    .buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 15px;
+    }
+    button {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 10px;
+      background: #007bff;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: 0.2s;
+    }
+    button:hover {
+      background: #0057c2;
+    }
+    #upload {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>CSS Filter Image Editor</h1>
+  <div class="editor">
+    <input type="file" id="upload" accept="image/*" />
+    <div class="image-container">
+      <img id="preview" src="https://via.placeholder.com/400x300?text=Upload+an+Image" alt="Preview Image">
+    </div>
+    <div class="controls">
+      <div class="control">
+        <label>Brightness</label>
+        <input type="range" id="brightness" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Contrast</label>
+        <input type="range" id="contrast" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Saturation</label>
+        <input type="range" id="saturate" min="0" max="200" value="100">
+      </div>
+      <div class="control">
+        <label>Blur</label>
+        <input type="range" id="blur" min="0" max="10" value="0">
+      </div>
+      <div class="control">
+        <label>Hue Rotate</label>
+        <input type="range" id="hue" min="0" max="360" value="0">
+      </div>
+    </div>
+    <div class="buttons">
+      <button id="reset">Reset</button>
+      <button id="download">Download</button>
+    </div>
+  </div>
+  <script>
+    const img = document.getElementById('preview');
+    const upload = document.getElementById('upload');
+    const reset = document.getElementById('reset');
+    const download = document.getElementById('download');
+    const filters = {
+      brightness: 100,
+      contrast: 100,
+      saturate: 100,
+      blur: 0,
+      hue: 0
+    };
+    function applyFilters() {
+      img.style.filter = `
+        brightness(${filters.brightness}%)
+        contrast(${filters.contrast}%)
+        saturate(${filters.saturate}%)
+        blur(${filters.blur}px)
+        hue-rotate(${filters.hue}deg)
+      `;
+    }
+    document.querySelectorAll('input[type="range"]').forEach(slider => {
+      slider.addEventListener('input', e => {
+        filters[e.target.id] = e.target.value;
+        applyFilters();
+      });
+    });
+    reset.addEventListener('click', () => {
+      for (let key in filters) {
+        filters[key] = key === 'blur' || key === 'hue' ? 0 : 100;
+        document.getElementById(key).value = filters[key];
+      }
+      applyFilters();
+    });
+    upload.addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => (img.src = reader.result);
+        reader.readAsDataURL(file);
+      }
+    });
+    download.addEventListener('click', () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      ctx.filter = img.style.filter;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const link = document.createElement('a');
+      link.download = 'edited-image.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>
