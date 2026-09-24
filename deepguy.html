@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Image Editor UI</title>
+    <style>
+        /* --- RESET & BASE STYLES --- */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #000;
+            color: #fff;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* --- APP CONTAINER --- */
+        .editor-container {
+            width: 100%;
+            height: 100%;
+            max-width: 480px; /* Mobile width cap */
+            display: flex;
+            flex-direction: column;
+            background-color: #000;
+            position: relative;
+        }
+
+        /* --- TOP TOOLBAR --- */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            font-size: 16px;
+            z-index: 10;
+        }
+
+        .top-left, .top-right {
+            display: flex;
+            gap: 25px;
+            align-items: center;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 5px;
+        }
+
+        .icon-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .save-text {
+            font-size: 16px;
+            color: #888;
+            cursor: pointer;
+        }
+
+        /* --- MAIN IMAGE AREA --- */
+        .image-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            padding: 10px;
+            overflow: hidden;
+            background-color: #111;
+        }
+
+        .image-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .image-wrapper img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            user-select: none;
+        }
+
+        /* Crop Overlay (Visual only) */
+        .crop-overlay {
+            position: absolute;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            pointer-events: none; /* Set to auto if you want to drag it */
+        }
+        
+        /* Corner handles for crop */
+        .crop-overlay::before, .crop-overlay::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #fff;
+        }
+        .crop-overlay::before { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+        .crop-overlay::after { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+        /* --- BOTTOM CONTROLS --- */
+        .bottom-controls {
+            background-color: #000;
+            padding-bottom: 20px;
+            z-index: 10;
+        }
+
+        /* Auto Button Area */
+        .auto-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 15px 0;
+        }
+
+        .auto-btn {
+            background: transparent;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        /* Slider/Ruler */
+        .slider-container {
+            width: 100%;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .ruler {
+            width: 100%;
+            height: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-image: repeating-linear-gradient(
+                to right,
+                #444 0,
+                #444 1px,
+                transparent 1px,
+                transparent 15px
+            );
+            background-size: 15px 100%;
+            position: relative;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 25px;
+            background-color: #FFC107; /* Yellow */
+            border-radius: 2px;
+            box-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+            cursor: pointer;
+        }
+
+        /* Tool Grid */
+        .tool-grid {
+            display: flex;
+            overflow-x: auto;
+            gap: 10px;
+            padding: 0 15px;
+            scrollbar-width: none; /* Firefox */
+        }
+        
+        .tool-grid::-webkit-scrollbar {
+            display: none; /* Chrome/Safari */
+        }
+
+        .tool-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 65px;
+            height: 65px;
+            border-radius: 12px;
+            background-color: #1a1a1a;
+            color: #fff;
+            font-size: 10px;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .tool-item svg {
+            width: 24px;
+            height: 24px;
+            fill: none;
+            stroke: currentColor;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* Active Tool State */
+        .tool-item.active {
+            background-color: #FFC107;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .tool-item.active svg {
+            stroke: #000;
+        }
+
+        /* Text Tool Row (Crop, Adjust, etc.) */
+        .text-tools {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 10px 5px 10px;
+            font-size: 13px;
+            color: #888;
+            border-top: 1px solid #222;
+        }
+
+        .text-tool-item {
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .text-tool-item.active-text {
+            color: #FFC107;
+            font-weight: bold;
+            background-color: rgba(255, 193, 7, 0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    
+    <!-- TOP TOOLBAR -->
+    <div class="top-bar">
+        <div class="top-left">
+            <button class="icon-btn" onclick="console.log('Close')">
+                <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <button class="icon-btn" onclick="console.log('Undo')">
+                <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+            </button>
+            <button class="icon-btn" onclick="console.log('Redo')">
+                <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+            </button>
+        </div>
+        <div class="top-right">
+            <span class="save-text" onclick="console.log('Save')">Save</span>
+            <button class="icon-btn" onclick="console.log('More')">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- IMAGE DISPLAY AREA -->
+    <div class="image-area">
+        <div class="image-wrapper">
+            <!-- Placeholder Image similar to the screenshot -->
+            <img src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Editor Image">
+            
+            <!-- Crop Overlay Lines -->
+            <div class="crop-overlay"></div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="bottom-controls">
+        
+        <!-- Auto Button -->
+        <div class="auto-row">
+            <button class="auto-btn">Auto</button>
+        </div>
+
+        <!-- Ruler / Slider -->
+        <div class="slider-container">
+            <div class="ruler"></div>
+            <div class="slider-thumb" id="sliderThumb"></div>
+        </div>
+
+        <!-- Main Tool Icons -->
+        <div class="tool-grid">
+            <div class="tool-item" data-tool="aspect">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                <span>Aspect ratio</span>
+            </div>
+            <div class="tool-item active" data-tool="rotate">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85 1.03 6.5 2.7L21 8"/><line x1="21" y1="3" x2="21" y2="8"/><line x1="16" y1="8" x2="21" y2="8"/></svg>
+                <span>Rotate</span>
+            </div>
+            <div class="tool-item" data-tool="horizontal">
+                <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 7l4-4 4 4"/><path d="M8 17l4 4 4-4"/></svg>
+                <span>Horizontal</span>
+            </div>
+            <div class="tool-item" data-tool="vertical">
+                <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M7 8l-4 4 4 4"/><path d="M17 8l4 4-4 4"/></svg>
+                <span>Vertical</span>
+            </div>
+            <div class="tool-item" data-tool="distort">
+                <svg viewBox="0 0 24 24"><polygon points="4 6 20 6 18 18 6 18 4 6"/></svg>
+                <span>Distort</span>
+            </div>
+        </div>
+
+        <!-- Bottom Text Tools -->
+        <div class="text-tools">
+            <span class="text-tool-item active-text">Crop</span>
+            <span class="text-tool-item">Adjust</span>
+            <span class="text-tool-item">Filter</span>
+            <span class="text-tool-item">Watermark</span>
+            <span class="text-tool-item">Markup</span>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // --- INTERACTIVE UI LOGIC ---
+
+    // 1. Tool Selection Logic
+    const toolItems = document.querySelectorAll('.tool-item');
+    
+    toolItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active class from all tools
+            toolItems.forEach(t => t.classList.remove('active'));
+            // Add active class to clicked tool
+            item.classList.add('active');
+            
+            // Log the action
+            console.log(`Tool selected: ${item.dataset.tool}`);
+        });
+    });
+
+    // 2. Text Tool Selection Logic
+    const textTools = document.querySelectorAll('.text-tool-item');
+    
+    textTools.forEach(item => {
+        item.addEventListener('click', () => {
+            textTools.forEach(t => t.classList.remove('active-text'));
+            item.classList.add('active-text');
+            console.log(`Text Tool selected: ${item.innerText}`);
+        });
+    });
+
+    // 3. Slider Logic (Simulated Ruler Interaction)
+    const sliderThumb = document.getElementById('sliderThumb');
+    const sliderContainer = document.querySelector('.slider-container');
+    
+    let isDragging = false;
+
+    sliderContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        updateSliderPosition(e.clientX);
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging) {
+            updateSliderPosition(e.clientX);
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
+
+    // Touch support for mobile
+    sliderContainer.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        updateSliderPosition(e.touches[0].clientX);
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging) {
+            updateSliderPosition(e.touches[0].clientX);
+        }
+    });
+
+    window.addEventListener('touchend', () => {
+        isDragging = false;
+    });
+
+    function updateSliderPosition(clientX) {
+        const rect = sliderContainer.getBoundingClientRect();
+        let x = clientX - rect.left;
+        
+        // Clamp within container
+        if (x < 0) x = 0;
+        if (x > rect.width) x = rect.width;
+        
+        // Update thumb position
+        sliderThumb.style.left = `${x}px`;
+        
+        // Calculate percentage (simulated value)
+        const percentage = (x / rect.width) * 100;
+        // console.log(`Slider Value: ${percentage.toFixed(2)}%`);
+    }
+
+    // 4. Basic Undo/Redo Simulation
+    let history = [];
+    let historyIndex = -1;
+
+    // (This is a placeholder for a real undo/redo system)
+    function pushHistory(action) {
+        history.push(action);
+        historyIndex++;
+    }
+
+</script>
+
+</body>
+</html>
