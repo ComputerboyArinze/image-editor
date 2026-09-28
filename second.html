@@ -252,13 +252,27 @@
         .tool-item.active svg { stroke: #000; }
 
         /* Text Tool Row */
-        .text-tools {
+        
+                .text-tools {
             display: flex;
-            justify-content: space-around;
-            padding: 15px 10px 5px 10px;
+            overflow-x: auto;                   /* 1. Enable horizontal scrolling */
+            justify-content: flex-start;        /* 2. Start items from the left, not spaced out */
+            gap: 15px;                          /* 3. Space between items */
+            padding: 15px 20px 5px 20px;        /* 4. Padding on the sides */
             font-size: 13px;
             color: #888;
             border-top: 1px solid #222;
+            scrollbar-width: none;              /* 5. Hide scrollbar on Firefox */
+            -webkit-overflow-scrolling: touch;  /* 6. Smooth momentum scrolling on iOS */
+        }
+
+        .text-tools::-webkit-scrollbar {
+            display: none;                      /* 7. Hide scrollbar on Chrome/Safari */
+        }
+
+        .text-tool-item {
+            flex-shrink: 0;                     /* 8. CRITICAL: Stop items from squishing */
+            white-space: nowrap;                /* 9. Stop text from wrapping to a new line */
         }
 
         .text-tool-item {
