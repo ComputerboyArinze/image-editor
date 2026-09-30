@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Image Editor - Full Featured</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #000; color: #fff; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        
+        .editor-container { width: 100%; height: 100%; max-width: 480px; display: flex; flex-direction: column; background-color: #000; position: relative; }
+
+        /* --- TOP TOOLBAR --- */
+        .top-bar { display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; font-size: 16px; z-index: 10; }
+        .top-left, .top-right { display: flex; gap: 20px; align-items: center; }
+        .icon-btn { background: none; border: none; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 5px; transition: opacity 0.2s; position: relative; }
+        .icon-btn:active { opacity: 0.6; }
+        .icon-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+        .icon-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .save-text { font-size: 16px; color: #FFC107; cursor: pointer; font-weight: bold; }
+        #fileInput { display: none; }
+
+        /* --- MAIN IMAGE AREA --- */
+        .image-area { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; padding: 10px; overflow: hidden; background-color: #111; }
+        .image-wrapper { position: relative; display: inline-block; max-width: 100%; max-height: 100%; }
+        #editorImage { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; display: block; transition: filter 0.1s ease-out; }
+
+        /* --- CROP OVERLAY (Interactive) --- */
+        .crop-overlay { position: absolute; border: 1px solid rgba(255, 255, 255, 0.8); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6); top: 15%; left: 15%; width: 70%; height: 70%; display: none; z-index: 5; cursor: move; }
+        .crop-handle { position: absolute; width: 20px; height: 20px; background: #FFC107; border-radius: 50%; border: 2px solid #000; z-index: 6; touch-action: none; }
+        .crop-handle.tl { top: -10px; left: -10px; cursor: nwse-resize; }
+        .crop-handle.tr { top: -10px; right: -10px; cursor: nesw-resize; }
+        .crop-handle.bl { bottom: -10px; left: -10px; cursor: nesw-resize; }
+        .crop-handle.br { bottom: -10px; right: -10px; cursor: nwse-resize; }
+
+        /* --- TEXT OVERLAY --- */
+        .text-overlay { position: absolute; color: #fff; font-weight: bold; font-size: 24px; cursor: move; user-select: none; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); padding: 5px; border: 1px dashed transparent; z-index: 7; display: none; touch-action: none; }
+        .text-overlay.active { border-color: #FFC107; }
+
+        /* --- BOTTOM CONTROLS --- */
+        .bottom-controls { background-color: #000; padding-bottom: 20px; z-index: 10; max-height: 45vh; overflow-y: auto; scrollbar-width: none; }
+        .bottom-controls::-webkit-scrollbar { display: none; }
+
+        .auto-row { display: flex; justify-content: center; align-items: center; padding: 10px 0; gap: 10px; }
+        .auto-btn { background: transparent; border: 1px solid #444; color: #fff; padding: 6px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; transition: background 0.2s; }
+        .auto-btn:active { background: #333; }
+        .auto-btn.primary { background: #FFC107; color: #000; border-color: #FFC107; font-weight: bold; }
+        .auto-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        /* Slider/Ruler */
+        .slider-container { width: 100%; height: 30px; display: flex; align-items: center; padding: 0 20px; position: relative; margin-bottom: 10px; }
+        .ruler { width: 100%; height: 15px; display: flex; justify-content: space-between; align-items: center; background-image: repeating-linear-gradient(to right, #444 0, #444 1px, transparent 1px, transparent 15px); background-size: 15px 100%; position: relative; }
+        .slider-thumb { position: absolute; left: 50%; transform: translateX(-50%); width: 4px; height: 25px; background-color: #FFC107; border-radius: 2px; box-shadow: 0 0 5px rgba(255, 193, 7, 0.5); cursor: pointer; pointer-events: none; }
+
+        /* Tool Grid */
+        .tool-grid { display: flex; overflow-x: auto; gap: 10px; padding: 0 15px 10px 15px; scrollbar-width: none; }
+        .tool-grid::-webkit-scrollbar { display: none; }
+        .tool-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 65px; height: 65px; border-radius: 12px; background-color: #1a1a1a; color: #fff; font-size: 10px; gap: 5px; cursor: pointer; transition: all 0.2s ease; border: 1px solid transparent; flex-shrink: 0; }
+        .tool-item svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .tool-item.active { background-color: #FFC107; color: #000; font-weight: bold; }
+        .tool-item.active svg { stroke: #000; }
+
+        /* Text Tools - Scrollable */
+        .text-tools { display: flex; overflow-x: auto; justify-content: flex-start; gap: 15px; padding: 10px 20px 5px 20px; font-size: 13px; color: #888; border-top: 1px solid #222; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .text-tools::-webkit-scrollbar { display: none; }
+        .text-tool-item { cursor: pointer; padding: 5px 10px; border-radius: 5px; transition: color 0.2s; flex-shrink: 0; white-space: nowrap; }
+        .text-tool-item.active-text { color: #FFC107; font-weight: bold; background-color: rgba(255, 193, 7, 0.1); }
+
+        /* Advanced Filter Presets Row */
+        .presets-row { display: flex; overflow-x: auto; gap: 10px; padding: 10px 20px; scrollbar-width: none; }
+        .presets-row::-webkit-scrollbar { display: none; }
+        .preset-btn { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; background: #1a1a1a; border: 1px solid #333; color: #fff; font-size: 12px; cursor: pointer; transition: all 0.2s; }
+        .preset-btn:hover, .preset-btn:active { background: #FFC107; color: #000; border-color: #FFC107; }
+
+        /* Text Editor Panel */
+        .text-editor { display: none; padding: 10px 20px; gap: 10px; align-items: center; background: #1a1a1a; border-top: 1px solid #222; }
+        .text-editor.show { display: flex; }
+        .text-editor input[type="text"] { flex: 1; padding: 8px; border-radius: 6px; border: 1px solid #444; background: #000; color: #fff; font-size: 14px; }
+        .text-editor input[type="color"] { width: 35px; height: 35px; border: none; background: none; cursor: pointer; }
+        .text-editor input[type="range"] { width: 60px; }
+
+        /* Toast */
+        .toast { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background-color: #FFC107; color: #000; padding: 10px 20px; border-radius: 20px; font-weight: bold; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; z-index: 100; }
+        .toast.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div class="editor-container">
+    
+    <!-- TOP TOOLBAR -->
+    <div class="top-bar">
+        <div class="top-left">
+            <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="Choose Image">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            </button>
+            <button class="icon-btn" id="undoBtn" onclick="undoAction()" disabled>
+                <svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+            </button>
+            <button class="icon-btn" id="redoBtn" onclick="redoAction()" disabled>
+                <svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+            </button>
+        </div>
+        <div class="top-right">
+            <span class="save-text" onclick="saveImage()">Save</span>
+        </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*">
+
+    <!-- MAIN IMAGE AREA -->
+    <div class="image-area">
+        <div class="image-wrapper" id="imageWrapper">
+            <img id="editorImage" src="https://images.unsplash.com/photo-1555939594-58d7cb561ad1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Editor Image" crossorigin="anonymous">
+            
+            <!-- Interactive Crop Overlay -->
+            <div class="crop-overlay" id="cropOverlay">
+                <div class="crop-handle tl" data-corner="tl"></div>
+                <div class="crop-handle tr" data-corner="tr"></div>
+                <div class="crop-handle bl" data-corner="bl"></div>
+                <div class="crop-handle br" data-corner="br"></div>
+            </div>
+
+            <!-- Draggable Text Overlay -->
+            <div class="text-overlay" id="textOverlay">Your Text</div>
+        </div>
+    </div>
+
+    <!-- BOTTOM CONTROLS -->
+    <div class="bottom-controls">
+        
+        <!-- Auto / Apply Row -->
+        <div class="auto-row">
+            <button class="auto-btn" onclick="applyAuto()">Auto</button>
+            <button class="auto-btn primary" id="applyCropBtn" style="display:none;" onclick="applyCrop()">Apply Crop</button>
+            <button class="auto-btn primary" id="applyTextBtn" style="display:none;" onclick="applyText()">Add Text</button>
+        </div>
+
+        <!-- Text Editor Panel (hidden by default) -->
+        <div class="text-editor" id="textEditor">
+            <input type="text" id="textInput" placeholder="Enter text..." value="Your Text">
+            <input type="color" id="textColor" value="#ffffff">
+            <input type="range" id="textSize" min="10" max="100" value="24">
+        </div>
+
+        <!-- Slider / Ruler -->
+        <div class="slider-container" id="sliderContainer">
+            <div class="ruler"></div>
+            <div class="slider-thumb" id="sliderThumb"></div>
+        </div>
+
+        <!-- Main Tool Icons -->
+        <div class="tool-grid">
+            <div class="tool-item" data-tool="aspect" onclick="selectTool(this, 'aspect')">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                <span>Aspect</span>
+            </div>
+            <div class="tool-item" data-tool="rotate" onclick="selectTool(this, 'rotate')">
+                <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.85 1.03 6.5 2.7L21 8"/><line x1="21" y1="3" x2="21" y2="8"/><line x1="16" y1="8" x2="21" y2="8"/></svg>
+                <span>Rotate</span>
+            </div>
+            <div class="tool-item" data-tool="horizontal" onclick="selectTool(this, 'horizontal')">
+                <svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 7l4-4 4 4"/><path d="M8 17l4 4 4-4"/></svg>
+                <span>Flip H</span>
+            </div>
+            <div class="tool-item" data-tool="vertical" onclick="selectTool(this, 'vertical')">
+                <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M7 8l-4 4 4 4"/><path d="M17 8l4 4-4 4"/></svg>
+                <span>Flip V</span>
+            </div>
+            <div class="tool-item" data-tool="text" onclick="selectTool(this, 'text')">
+                <svg viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+                <span>Text</span>
+            </div>
+        </div>
+
+        <!-- Advanced Filter Presets -->
+        <div class="presets-row" id="presetsRow">
+            <button class="preset-btn" onclick="applyPreset('none')">Original</button>
+            <button class="preset-btn" onclick="applyPreset('vintage')">Vintage</button>
+            <button class="preset-btn" onclick="applyPreset('bw')">B&W</button>
+            <button class="preset-btn" onclick="applyPreset('cinematic')">Cinematic</button>
+            <button class="preset-btn" onclick="applyPreset('warm')">Warm</button>
+            <button class="preset-btn" onclick="applyPreset('cool')">Cool</button>
+            <button class="preset-btn" onclick="applyPreset('dramatic')">Dramatic</button>
+            <button class="preset-btn" onclick="applyPreset('fade')">Fade</button>
+        </div>
+
+        <!-- Filter Sliders Text Tools -->
+        <div class="text-tools">
+            <span class="text-tool-item active-text" onclick="setSliderMode(this, 'brightness')">Brightness</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'contrast')">Contrast</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'saturate')">Saturate</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'hue-rotate')">Hue</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'sepia')">Sepia</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'grayscale')">Grayscale</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'blur')">Blur</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'invert')">Invert</span>
+            <span class="text-tool-item" onclick="setSliderMode(this, 'opacity')">Opacity</span>
+        </div>
+
+    </div>
+
+    <div class="toast" id="toast">Image Saved!</div>
+</div>
+
+<script>
+/* =========================================================
+   1. STATE MANAGEMENT
+   ========================================================= */
+const img = document.getElementById('editorImage');
+const fileInput = document.getElementById('fileInput');
+
+let filters = { brightness: 1, contrast: 1, saturate: 1, 'hue-rotate': 0, sepia: 0, grayscale: 0, blur: 0, invert: 0, opacity: 1 };
+let transforms = { rotation: 0, flipH: 1, flipV: 1 };
+let currentSliderMode = 'brightness';
+
+// Crop State
+let cropActive = false;
+let cropRect = { x: 0.15, y: 0.15, w: 0.7, h: 0.7 }; // Normalized (0-1)
+
+// Text State
+let textActive = false;
+let textData = { text: "Your Text", color: "#ffffff", size: 24, x: 0.5, y: 0.5 };
+
+// History Stack
+let history = [];
+let historyIndex = -1;
+
+/* =========================================================
+   2. CORE RENDER
+   ========================================================= */
+function updateImageStyle() {
+    const filterString = `
+        brightness(${filters.brightness * 100}%) contrast(${filters.contrast * 100}%) 
+        saturate(${filters.saturate * 100}%) hue-rotate(${filters['hue-rotate']}deg) 
+        sepia(${filters.sepia * 100}%) grayscale(${filters.grayscale * 100}%) 
+        blur(${filters.blur}px) invert(${filters.invert * 100}%) opacity(${filters.opacity * 100}%)
+    `.trim().replace(/\s+/g, ' ');
+    
+    const transformString = `rotate(${transforms.rotation}deg) scale(${transforms.flipH}, ${transforms.flipV})`;
+    img.style.filter = filterString;
+    img.style.transform = transformString;
+
+    // Also update text overlay style
+    const textEl = document.getElementById('textOverlay');
+    textEl.style.color = textData.color;
+    textEl.style.fontSize = `${textData.size}px`;
+    textEl.textContent = textData.text;
+}
+
+/* =========================================================
+   3. HISTORY (UNDO / REDO)
+   ========================================================= */
+function getState() {
+    return JSON.stringify({
+        filters: { ...filters },
+        transforms: { ...transforms },
+        textData: { ...textData },
+        textActive: textActive
+    });
+}
+
+function pushState() {
+    // If we're in the middle of history, truncate forward states
+    if (historyIndex < history.length - 1) {
+        history = history.slice(0, historyIndex + 1);
+    }
+    history.push(getState());
+    historyIndex = history.length - 1;
+    updateHistoryButtons();
+}
+
+function undoAction() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        restoreState(history[historyIndex]);
+        updateHistoryButtons();
+    }
+}
+
+function redoAction() {
+    if (historyIndex < history.length - 1) {
+        historyIndex++;
+        restoreState(history[historyIndex]);
+        updateHistoryButtons();
+    }
+}
+
+function restoreState(stateStr) {
+    const state = JSON.parse(stateStr);
+    filters = { ...state.filters };
+    transforms = { ...state.transforms };
+    textData = { ...state.textData };
+    textActive = state.textActive;
+    
+    // Update text overlay position
+    const wrapper = document.getElementById('imageWrapper');
+    const rect = wrapper.getBoundingClientRect();
+    const textEl = document.getElementById('textOverlay');
+    textEl.style.left = `${textData.x * rect.width}px`;
+    textEl.style.top = `${textData.y * rect.height}px`;
+    textEl.style.display = textActive ? 'block' : 'none';
+
+    updateImageStyle();
+    resetSliderThumb();
+}
+
+function updateHistoryButtons() {
+    document.getElementById('undoBtn').disabled = historyIndex <= 0;
+    document.getElementById('redoBtn').disabled = historyIndex >= history.length - 1;
+}
+
+/* =========================================================
+   4. TOOL ACTIONS (Rotate / Flip)
+   ========================================================= */
+function selectTool(element, toolName) {
+    document.querySelectorAll('.tool-item').forEach(el => el.classList.remove('active'));
+    element.classList.add('active');
+
+    switch(toolName) {
+        case 'rotate':
+            transforms.rotation = (transforms.rotation + 90) % 360;
+            updateImageStyle();
+            pushState();
+            break;
+        case 'horizontal':
+            transforms.flipH *= -1;
+            updateImageStyle();
+            pushState();
+            break;
+        case 'vertical':
+            transforms.flipV *= -1;
+            updateImageStyle();
+            pushState();
+            break;
+        case 'text':
+            toggleTextMode();
+            break;
+        case 'aspect':
+            showToast("Aspect ratio coming soon");
+            break;
+    }
+}
+
+/* =========================================================
+   5. SLIDER CONTROLS
+   ========================================================= */
+const sliderContainer = document.getElementById('sliderContainer');
+const sliderThumb = document.getElementById('sliderThumb');
+let isDragging = false;
+
+function setSliderMode(element, mode) {
+    document.querySelectorAll('.text-tool-item').forEach(el => el.classList.remove('active-text'));
+    element.classList.add('active-text');
+    currentSliderMode = mode;
+    resetSliderThumb();
+}
+
+function resetSliderThumb() {
+    const rect = sliderContainer.getBoundingClientRect();
+    let percentage = 0.5;
+
+    switch(currentSliderMode) {
+        case 'brightness': case 'contrast': case 'saturate': case 'opacity':
+            percentage = filters[currentSliderMode] / 2; break;
+        case 'hue-rotate': percentage = filters[currentSliderMode] / 360; break;
+        case 'sepia': case 'grayscale': case 'invert': percentage = filters[currentSliderMode]; break;
+        case 'blur': percentage = filters[currentSliderMode] / 10; break;
+    }
+
+    percentage = Math.max(0, Math.min(1, percentage));
+    sliderThumb.style.left = `${percentage * rect.width}px`;
+}
+
+function updateSlider(clientX) {
+    const rect = sliderContainer.getBoundingClientRect();
+    let x = Math.max(0, Math.min(clientX - rect.left, rect.width));
+    sliderThumb.style.left = `${x}px`;
+    const percentage = x / rect.width;
+
+    switch(currentSliderMode) {
+        case 'brightness': case 'contrast': case 'saturate': case 'opacity':
+            filters[currentSliderMode] = percentage * 2; break;
+        case 'hue-rotate': filters[currentSliderMode] = percentage * 360; break;
+        case 'sepia': case 'grayscale': case 'invert': filters[currentSliderMode] = percentage; break;
+        case 'blur': filters[currentSliderMode] = percentage * 10; break;
+    }
+    updateImageStyle();
+}
+
+// Slider events
+sliderContainer.addEventListener('mousedown', (e) => { isDragging = true; updateSlider(e.clientX); });
+window.addEventListener('mousemove', (e) => { if (isDragging) updateSlider(e.clientX); });
+window.addEventListener('mouseup', () => { if (isDragging) { isDragging = false; pushState(); } });
+sliderContainer.addEventListener('touchstart', (e) => { isDragging = true; updateSlider(e.touches[0].clientX); }, {passive: true});
+window.addEventListener('touchmove', (e) => { if (isDragging) updateSlider(e.touches[0].clientX); }, {passive: true});
+window.addEventListener('touchend', () => { if (isDragging) { isDragging = false; pushState(); } });
+
+/* =========================================================
+   6. ADVANCED FILTER PRESETS
+   ========================================================= */
+function applyPreset(preset) {
+    // Reset to defaults first
+    filters = { brightness: 1, contrast: 1, saturate: 1, 'hue-rotate': 0, sepia: 0, grayscale: 0, blur: 0, invert: 0, opacity: 1 };
+    
+    switch(preset) {
+        case 'vintage':
+            filters.sepia = 0.5; filters.contrast = 1.1; filters.brightness = 0.95; filters.saturate = 0.8;
+            break;
+        case 'bw':
+            filters.grayscale = 1; filters.contrast = 1.2;
+            break;
+        case 'cinematic':
+            filters.contrast = 1.3; filters.saturate = 0.85; filters.brightness = 0.9; filters['hue-rotate'] = -10;
+            break;
+        case 'warm':
+            filters['hue-rotate'] = -15; filters.saturate = 1.2; filters.brightness = 1.05;
+            break;
+        case 'cool':
+            filters['hue-rotate'] = 20; filters.saturate = 1.1; filters.brightness = 1.0;
+            break;
+        case 'dramatic':
+            filters.contrast = 1.5; filters.saturate = 1.2; filters.brightness = 0.85;
+            break;
+        case 'fade':
+            filters.contrast = 0.85; filters.saturate = 0.7; filters.brightness = 1.1;
+            break;
+    }
+    
+    updateImageStyle();
+    resetSliderThumb();
+    pushState();
+}
+
+/* =========================================================
+   7. CROP FUNCTIONALITY
+   ========================================================= */
+const cropOverlay = document.getElementById('cropOverlay');
+const applyCropBtn = document.getElementById('applyCropBtn');
+
+function toggleCropMode() {
+    cropActive = !cropActive;
+    cropOverlay.style.display = cropActive ? 'block' : 'none';
+    applyCropBtn.style.display = cropActive ? 'block' : 'none';
+    
+    // Disable other interactions visually
+    if (cropActive) {
+        document.getElementById('textOverlay').style.display = 'none';
+    } else {
+        document.getElementById('textOverlay').style.display = textActive ? 'block' : 'none';
+    }
+}
+
+// Make Crop "Crop" button trigger this - added a new button in the tool grid?
+// Wait, the user has "Crop" as one of the text tools? Let me just hook it to the Crop text tool.
+
+// Since we have "Crop" in the top text tools originally, let's use the "Text" tool position or add a Crop button.
+// Actually, let's toggle crop when user clicks any tool? No.
+// Let's add a "Crop" button to the tool grid.
+// I'll modify the HTML tool-grid to include a Crop item. Done above (Added "Text" but no Crop).
+// Let's add a Crop tool item dynamically.
+
+// Actually, better: Let's just add Crop as a tool item.
+// I'll inject it into the tool grid.
+document.querySelector('.tool-grid').insertAdjacentHTML('beforeend', `
+    <div class="tool-item" data-tool="crop" onclick="toggleCropMode()">
+        <svg viewBox="0 0 24 24"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg>
+        <span>Crop</span>
+    </div>
+`);
+
+// Crop Drag Logic
+let activeHandle = null;
+let startX, startY, startRect;
+
+cropOverlay.addEventListener('mousedown', startCropDrag);
+cropOverlay.addEventListener('touchstart', startCropDrag, {passive: true});
+
+function startCropDrag(e) {
+    if (e.target.classList.contains('crop-handle')) {
+        activeHandle = e.target.dataset.corner;
+    } else if (e.target === cropOverlay) {
+        activeHandle = 'move';
+    } else {
+        return;
+    }
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    startX = clientX;
+    startY = clientY;
+    startRect = { ...cropRect };
+    
+    e.preventDefault();
+}
+
+window.addEventListener('mousemove', moveCropDrag);
+window.addEventListener('touchmove', moveCropDrag, {passive: true});
+
+function moveCropDrag(e) {
+    if (!activeHandle) return;
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    const wrapper = document.getElementById('imageWrapper');
+    const rect = wrapper.getBoundingClientRect();
+    
+    const dx = (clientX - startX) / rect.width;
+    const dy = (clientY - startY) / rect.height;
+    
+    let newRect = { ...startRect };
+    
+    if (activeHandle === 'move') {
+        newRect.x = Math.max(0, Math.min(1 - newRect.w, startRect.x + dx));
+        newRect.y = Math.max(0, Math.min(1 - newRect.h, startRect.y + dy));
+    } else {
+        if (activeHandle.includes('l')) { newRect.x = Math.max(0, startRect.x + dx); newRect.w = Math.max(0.1, startRect.w - dx); }
+        if (activeHandle.includes('r')) { newRect.w = Math.max(0.1, startRect.w + dx); }
+        if (activeHandle.includes('t')) { newRect.y = Math.max(0, startRect.y + dy); newRect.h = Math.max(0.1, startRect.h - dy); }
+        if (activeHandle.includes('b')) { newRect.h = Math.max(0.1, startRect.h + dy); }
+        
+        // Clamp
+        if (newRect.x + newRect.w > 1) newRect.w = 1 - newRect.x;
+        if (newRect.y + newRect.h > 1) newRect.h = 1 - newRect.y;
+    }
+    
+    cropRect = newRect;
+    updateCropOverlayPosition(rect);
+}
+
+function updateCropOverlayPosition(wrapperRect) {
+    const r = wrapperRect || document.getElementById('imageWrapper').getBoundingClientRect();
+    cropOverlay.style.left = `${cropRect.x * 100}%`;
+    cropOverlay.style.top = `${cropRect.y * 100}%`;
+    cropOverlay.style.width = `${cropRect.w * 100}%`;
+    cropOverlay.style.height = `${cropRect.h * 100}%`;
+}
+
+window.addEventListener('mouseup', endCropDrag);
+window.addEventListener('touchend', endCropDrag);
+
+function endCropDrag() {
+    if (activeHandle) {
+        activeHandle = null;
+        pushState(); // Save state after drag
+    }
+}
+
+// The actual crop logic
+function applyCrop() {
+    if (!cropActive) return;
+    
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Use the natural size of the image (before CSS scaling)
+    const natW = img.naturalWidth;
+    const natH = img.naturalHeight;
+    
+    // Calculate the cropped dimensions in natural pixels
+    const cropX = cropRect.x * natW;
+    const cropY = cropRect.y * natH;
+    const cropW = cropRect.w * natW;
+    const cropH = cropRect.h * natH;
+    
+    canvas.width = cropW;
+    canvas.height = cropH;
+    
+    // Apply the existing filters and transforms to the canvas
+    ctx.filter = buildFilterString
