@@ -114,10 +114,26 @@ body {
           z-index: 6; 
           touch-action: none; 
         }
-    .crop-handle.tl { top: -11px; left: -11px; cursor: nwse-resize; }
-    .crop-handle.tr { top: -11px; right: -11px; cursor: nesw-resize; }
-    .crop-handle.bl { bottom: -11px; left: -11px; cursor: nesw-resize; }
-    .crop-handle.br { bottom: -11px; right: -11px; cursor: nwse-resize; }
+    .crop-handle.tl { 
+        top: -11px; 
+        left: -11px; 
+        cursor: nwse-resize; 
+    }
+    .crop-handle.tr { 
+        top: -11px; 
+        right: -11px; 
+        cursor: nesw-resize; 
+    }
+    .crop-handle.bl { 
+        bottom: -11px; 
+        left: -11px; 
+        cursor: nesw-resize; 
+    }
+    .crop-handle.br { 
+        bottom: -11px; 
+        right: -11px; 
+        cursor: nwse-resize; 
+    }
 
     /* Text Overlay */
     .text-overlay {
